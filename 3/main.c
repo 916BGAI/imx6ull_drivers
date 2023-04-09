@@ -16,6 +16,12 @@
 #include <linux/platform_device.h>
 #include <linux/types.h>
 
+static void __iomem *CCM_CCGR1;
+static void __iomem *SW_MUX_SNVS_TAMPER3;
+static void __iomem *SW_PAD_SNVS_TAMPER3;
+static void __iomem *GPIO5_GDIR;
+static void __iomem *GPIO5_DR;
+
 struct led_dev {
 	dev_t dev_id;
 	int major;
@@ -26,12 +32,6 @@ struct led_dev {
 };
 
 static struct led_dev led;
-
-static void __iomem *CCM_CCGR1;
-static void __iomem *SW_MUX_SNVS_TAMPER3;
-static void __iomem *SW_PAD_SNVS_TAMPER3;
-static void __iomem *GPIO5_GDIR;
-static void __iomem *GPIO5_DR;
 
 static void led_board_ctrl(int status)
 {
@@ -76,36 +76,33 @@ static int led_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int led_release(struct inode *inode, struct file *filp)
+static int led_release(struct inode *inode, struct file *file)
 {
 	return 0;
 }
 
-static int led_read(struct file *filp, char __user *buff, size_t count,
-		    loff_t *offp)
+static ssize_t led_read(struct file *file, char __user *buf, size_t size,
+			loff_t *ppos)
 {
 	return 0;
 }
 
-static int led_write(struct file *filp, const char __user *buff, size_t count,
-		     loff_t *offp)
+static ssize_t led_write(struct file *file, const char __user *buf,
+			 size_t count, loff_t *pos)
 {
     int ret;
-    unsigned char data_buff[1];
-    unsigned char led_status;
+	size_t status;
 
-	ret = copy_from_user(data_buff, buff, 1);
+	ret = copy_from_user(&status,buf,4);
     if (ret < 0) {
         printk("led write failed!\n");
         return -EFAULT;
     }
 
-    // 控制LED
-    led_status = data_buff[0];
-    if (led_status == 0) {
-        led_board_ctrl(0);
-    } else if (led_status == 1){
+    if (status == 0) {
         led_board_ctrl(1);
+    } else if (status == 1){
+        led_board_ctrl(0);
     }
 
 	return 0;

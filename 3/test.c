@@ -1,17 +1,22 @@
-#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <unistd.h>
+#include <string.h>
 
 int main(int argc, char *argv[])
 {
     int fd;
-    int ret;
+    int val;
     char *filename = NULL;
     unsigned char data_buf[1];
 
     // 检查参数
     if (argc != 3) {
-        printf("usage: ./test_led [device] [led status]\n");
+        printf("usage: ./test [device] [on/off]\n");
+        close(fd);
+        return -1;
     }
 
     // 打开设备文件
@@ -19,18 +24,18 @@ int main(int argc, char *argv[])
     fd = open(filename, O_RDWR);
     if (fd < 0) {
         printf("open %s error!\n", filename);
-        return 0;
+        return -1;
     }
 
-    // 写文件
-    data_buf[0] = atoi(argv[2]);
-
-    ret = write(fd, data_buf, sizeof(data_buf));
-    if (ret < 0) {
-        printf("write %s error!\n", data_buf);
+    if (!strcmp(argv[2], "on"))
+	val = 0;
+    else if (!strcmp(argv[2], "off"))
+	val = 1;
+    else {
+	close(fd);
+	return -1;
     }
-
-    // 关闭文件
+    write(fd, &val, 4);
     close(fd);
 
     return 0;
