@@ -1,0 +1,149 @@
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/fs.h>
+#include <linux/init.h>
+#include <asm/io.h>
+#include <asm/uaccess.h>
+#include <linux/device.h>
+#include <linux/cdev.h>
+#include <asm-generic/gpio.h>
+#include <linux/kdev_t.h>
+#include <linux/kern_levels.h>
+#include <linux/printk.h>
+#include <linux/gpio.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
+#include <linux/platform_device.h>
+#include <linux/types.h>
+#include <linux/kobject.h>
+#include <linux/sysfs.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/ioport.h>
+#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
+#include <linux/export.h>
+
+struct gpio_desc *led_pin_1;
+struct gpio_desc *led_pin_2;
+struct gpio_desc *led_pin_3;
+struct gpio_desc *led_pin_4;
+
+static struct kobject *led_kobj;
+
+static ssize_t led_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	return sprintf(buf, "The led status is = %d\r\n",
+		       gpiod_get_value(led_pin_2));
+}
+
+static ssize_t led_store(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
+{
+	if (0 == memcmp(buf, "on", 2)) {
+		gpiod_set_value(led_pin_1, 0);
+		gpiod_set_value(led_pin_2, 0);
+		gpiod_set_value(led_pin_3, 0);
+		gpiod_set_value(led_pin_4, 0);
+	} else if (0 == memcmp(buf, "off", 3)) {
+		gpiod_set_value(led_pin_1, 1);
+		gpiod_set_value(led_pin_2, 1);
+		gpiod_set_value(led_pin_3, 1);
+		gpiod_set_value(led_pin_4, 1);
+	} else {
+		printk(KERN_INFO "Not support cmd\r\n");
+	}
+	return count;
+}
+
+static DEVICE_ATTR(LED, 0660, led_show, led_store);
+
+static int led_probe(struct platform_device *pdev)
+{
+	int ret;
+
+	led_kobj = kobject_create_and_add("LED", NULL);
+	if (!led_kobj)
+		return -ENOMEM;
+	ret = sysfs_create_file(led_kobj, &dev_attr_LED.attr);
+	if (ret)
+		return ret;
+
+	led_pin_1 =
+		devm_gpiod_get(&pdev->dev, "led1", GPIOF_OUT_INIT_HIGH);
+	if (IS_ERR(led_pin_1))
+		return PTR_ERR(led_pin_1);
+	led_pin_2 =
+		devm_gpiod_get(&pdev->dev, "led2", GPIOF_OUT_INIT_HIGH);
+	if (IS_ERR(led_pin_2))
+		return PTR_ERR(led_pin_2);
+	led_pin_3 =
+		devm_gpiod_get(&pdev->dev, "led3", GPIOF_OUT_INIT_HIGH);
+	if (IS_ERR(led_pin_3))
+		return PTR_ERR(led_pin_3);
+	led_pin_4 =
+		devm_gpiod_get(&pdev->dev, "led4", GPIOF_OUT_INIT_HIGH);
+	if (IS_ERR(led_pin_4))
+		return PTR_ERR(led_pin_4);
+
+	gpiod_direction_output(led_pin_1, 1);
+	gpiod_direction_output(led_pin_2, 1);
+	gpiod_direction_output(led_pin_3, 1);
+	gpiod_direction_output(led_pin_4, 1);
+
+	return 0;
+}
+
+static int led_remove(struct platform_device *pdev)
+{
+	gpiod_direction_output(led_pin_1, 1);
+	gpiod_direction_output(led_pin_2, 1);
+	gpiod_direction_output(led_pin_3, 1);
+	gpiod_direction_output(led_pin_4, 1);
+
+	gpiod_direction_input(led_pin_1);
+	gpiod_direction_input(led_pin_2);
+	gpiod_direction_input(led_pin_3);
+	gpiod_direction_input(led_pin_4);
+
+	devm_gpiod_put(&pdev->dev,led_pin_1);
+	devm_gpiod_put(&pdev->dev,led_pin_2);
+	devm_gpiod_put(&pdev->dev,led_pin_3);
+	devm_gpiod_put(&pdev->dev,led_pin_4);
+
+	sysfs_remove_file(led_kobj, &dev_attr_LED.attr);
+	kobject_put(led_kobj);
+
+	return 0;
+}
+
+static struct of_device_id led_match_table[] = {
+	{
+		.compatible = "imx6ull,gpio-leds",
+	},
+};
+static struct platform_device_id led_device_ids[] = {
+	{
+		.name = "leds",
+	},
+};
+
+static struct platform_driver led_driver= 
+{ 
+	.driver={ 
+	.name = "leds",
+	.owner = THIS_MODULE,
+	.of_match_table = led_match_table, 
+	}, 
+	.probe = led_probe, 
+	.remove = led_remove, 
+	.id_table = led_device_ids,
+};
+
+module_platform_driver(led_driver);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("zhang <zhang916772719@gmail.com>");
+MODULE_DESCRIPTION("LED");
+MODULE_VERSION("1.0");
