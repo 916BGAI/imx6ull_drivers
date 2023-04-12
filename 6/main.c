@@ -35,7 +35,7 @@ static ssize_t led_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *buf)
 {
 	return sprintf(buf, "The led status is = %d\r\n",
-		       gpiod_get_value(led_pin_2));
+		       gpiod_get_value(led_pin_1));
 }
 
 static ssize_t led_store(struct kobject *kobj,
